@@ -1,0 +1,52 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  db:
+    image: mysql:8
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: bananastream
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    build:
+      context: ../BananaStream.Web/
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    environment:
+      - VITE_API_URL=http://api:8080
+    restart: unless-stopped
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: livekit
+    ports:
+      - "7880:7880"   # HTTP API для Livekit
+      - "7881:7881"   # Сигналинг WebRTC
+    environment:
+      LIVEKIT_KEYS: "ASDKGAWIOEYQWOIQ0923147KJDFHSFSDFABSDQWEQWESADADASD134123456: ASDKGAWIOEYQWOIQ0923147KJDFHSFSDFABSDQWEQWESADADASD134123456"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:7880/" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
